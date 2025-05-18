@@ -2,98 +2,110 @@
 #include <fstream>
 #include <vector>
 #include <string>
-#include <unordered_set>
-#include <unordered_map>
 using namespace std;
 
-// Check whether a word contains any of certain letters
-bool containsAny(const string& word, const string& letters){
-    for(char c : letters){
-        if(word.find(c) != string::npos){
-            return true; // found at least one letter
-        }
-    }
-    return false;
-}
+const string FILENAME = "wordlist.txt";
+typedef vector<vector<string>> wordlist;
+typedef vector<vector<pair<char,char>>> grid;
 
-// Function to check if a word contains adjacent letters on the same side
-bool sameSideLetters(const string& word, unordered_map<char,int> ss){
-    for (int i = 0; i < word.size(); ++i) {
-        if (i > 0)
-            if(ss[word[i]] == ss[word[i-1]]) return true;
-        if (i + 1 < word.size())
-            if(ss[word[i]] == ss[word[i+1]]) return true;
+// Prints the puzzle with colors for each different word
+void printPuzzle(const grid& puzzle){
+    for(int i = 0; i < 8; i++){
+        for(int j = 0; j < 6; j++){
+            switch(puzzle[i][j].second){
+                case '1':
+                    cout << "\033[38;5;1m";
+                    break;
+                case '2':
+                    cout << "\033[38;5;2m";
+                    break;
+                case '3':
+                    cout << "\033[38;5;3m";
+                    break;
+                case '4':
+                    cout << "\033[38;5;4m";
+                    break;
+                case '5':
+                    cout << "\033[38;5;5m";
+                    break;
+                case '6':
+                    cout << "\033[38;5;159m";
+                    break;
+                case '7':
+                    cout << "\033[38;5;200m";
+                    break;
+                case '8':
+                    cout << "\033[38;5;214m";
+                    break;
+                case '9':
+                    cout << "\033[38;5;141m";
+                    break;
+                default:
+                    cout << "\033[0m";
+            }
+            cout << puzzle[i][j].first << " ";
+        }
+        cout << endl;
     }
-    return false;
+    cout << endl;
 }
 
 // Prints solutions to the puzzle
-void getSolutions(const vector<string>& words, string currSol, int nw, int usedlen){
-    // Print the solution if it includes every used letter
-    unordered_set<char> sol;
-    int currnw = 1;
-    for(char c : currSol){
-        if(c != ' ') sol.insert(c);
-        else currnw++;
-    }
-    if(sol.size() == usedlen) cout << currSol << endl;
+void getSolution(int x, int y, int color, string word, const wordlist& words, grid puzzle){
     
-    // If not solved and less than numWords, add another word and try again
-    else if(currnw < nw){
-        for(const auto& w : words){
-            if(currSol[currSol.length()-1] == w[0]){
-                string next = currSol + " " + w;
-                getSolutions(words,next,nw,usedlen);
-            }
-        }
-    }
 }
 
 int main(){
-    // Get the used letters
-    string used, unused;
-    int numWords;
-    cout << "Enter the puzzle starting with the top side (e.g. abcdefghijkl): ";
-    getline(cin, used);
-    cout << "Enter max number of words you want to use: ";
-    getline(cin, unused);
-    numWords = stoi(unused);
-
-    // Get the unused letters
-    unordered_set<char> usedSet;
-    unused = "";
-    for(char c : used) usedSet.insert(tolower(c));
-    for(char c = 'a'; c <= 'z'; ++c){
-        if(usedSet.find(c) == usedSet.end()) unused += c;
+    // Get the puzzle
+    grid puzzle;
+    cout << "Enter each line of the puzzle with no spaces." << endl;
+    for(int i = 0; i < 8; i++){
+        vector<pair<char,char>> row;
+        string buffer;
+        cout << "Line " << i+1 << ": ";
+        getline(cin, buffer);
+        for(int j = 0; j < 6; j++){
+            pair<char,char> item = {buffer[j],'0'};
+            row.push_back(item);
+        }
+        puzzle.push_back(row);
+    }
+    
+    // Read in valid words to their respective length list
+    ifstream file(FILENAME);
+    wordlist words;
+    for(int i = 0; i < 7; i++){
+        // Lists for 3, 4, 5, 6, 7, 8, and 9+ letter words
+        vector<string> list;
+        words.push_back(list);
     }
 
-    // Get a map of used letters on the same side of the puzzle
-    unordered_map<char,int> sameSide;
-    for(int i = 0; i < used.length(); ++i) sameSide[used[i]] = i / 3;
-    
-    // Read in valid words (3+ letters, no unused letters, no same side letters)
-    ifstream file("wordlist2.txt");
-    vector<string> words;
+    // Read in file
     string word;
     if(!file){
-        cout << "Error opening wordlist2.txt" << endl;
+        cout << "Error opening word list" << endl;
         return 1;
     }
     while (file >> word){
-        if(word.length() >= 3 && !containsAny(word,unused) && !sameSideLetters(word,sameSide))
-            words.push_back(word);
+        if(word.length() >= 3){
+            if(word.length() < 9) words[word.length()-3].push_back(word);
+            else words[6].push_back(word);
+        }
     }
     file.close();
 
-    // Print out solutions less than or equal to numWords
-    for(const auto& w : words){
-        getSolutions(words,w,numWords,used.length());
-    }
-    
+    // Solve the puzzle
+    string word = "";
+    getSolution(0, 0, 1, word, words, puzzle);
+    cout << "\n--- Solution ---\n";
+    printPuzzle(puzzle);
+
     /* // Print loaded words (optional)
-    cout << "Loaded " << words.size() << " words." << endl;
-    for(const auto& w : words){
-        cout << w << endl;
+    for(int i = 0; i < 7; i++){
+        for(int j = 0; j < 10; j++){
+            cout << words[i][j] << endl;
+        }
+        cout << endl;
     } */
 
     return 0;
