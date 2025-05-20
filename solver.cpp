@@ -15,6 +15,7 @@ using namespace std;
 const string FILENAME = "wordlist.txt";
 typedef unordered_set<string> wordlist;
 typedef vector<vector<pair<char,char>>> grid;
+typedef unordered_map<char, vector<pair<int, int>>> groups;
 
 // Prints the puzzle with colors for each different word
 void printPuzzle(const grid& puzzle, int h, int w){
@@ -59,21 +60,15 @@ void printPuzzle(const grid& puzzle, int h, int w){
 }
 
 // Make sure you don't set a color not adjacent to another color
-bool adjacentToColor(const grid& puzzle, int y, int x, char c, int h, int w){
-    // Would return true if this is first time that color is used
-    bool firstOfColor = true;
-    for(int i = 0; i < h; i++){
-        for(int j = 0; j < w; j++){
-            if(puzzle[i][j].second == c){
-                // Check if the color is already on the board
-                firstOfColor = false;
-                // Check if adjacent (and not just x,y)
-                if(((abs(i-y) <= 1) && (abs(j-x) <= 1)) && (i != y || j != x))
-                    return true;
-            }
-        }
+bool adjacentToColor(const groups& colorPositions, int y, int x, char c){
+    const auto& pos = colorPositions.find(c);
+    if (pos == colorPositions.end() || pos->second.empty()) return true; // First use of color
+
+    for (const auto& [cy, cx] : pos->second) {
+        if (abs(cy - y) <= 1 && abs(cx - x) <= 1 && (cy != y || cx != x))
+            return true;
     }
-    return firstOfColor;
+    return false;
 }
 
 // Check whether the sorted letters of each group can be found in a sorted dict
@@ -99,15 +94,19 @@ bool validSolution(const wordlist& words, const grid& puzzle, int h, int w){
 }
 
 // Prints solution to the puzzle
-bool getSolution(const wordlist& words, grid& puzzle, int h, int w){
+bool getSolution(const wordlist& words, grid& puzzle, int h, int w, groups& colorPositions, int maxWords){
     // Try grid until the colors are all in touching groups
     for(int y = 0; y < h; y++){
         for(int x = 0; x < w; x++){
             if(puzzle[y][x].second == '0'){
-                for(char c = '1'; c < '9'; c++){
-                    if(adjacentToColor(puzzle,y,x,c,h,w)){
+                for(char c = '1'; c <= '0' + maxWords; c++){
+                    if (adjacentToColor(colorPositions, y, x, c)) {
                         puzzle[y][x].second = c;
-                        if(getSolution(words,puzzle,h,w)) return true;
+                        colorPositions[c].emplace_back(y, x);
+                //Sleep(500);
+                //printPuzzle(puzzle,h,w);
+                        if (getSolution(words, puzzle, h, w, colorPositions, maxWords)) return true;
+                        colorPositions[c].pop_back();
                         puzzle[y][x].second = '0';
                     }
                 }
@@ -121,7 +120,7 @@ bool getSolution(const wordlist& words, grid& puzzle, int h, int w){
         cout << "\nSolution\n";
         printPuzzle(puzzle,h,w);
         return true;
-    } else return false;
+    }else return false;
 }
 
 int main(){
@@ -131,6 +130,14 @@ int main(){
     char x;
     cout << "Enter dimensions (WxH): ";
     cin >> w >> x >> h;
+    cin.clear();
+    cin.ignore(100,'\n');
+
+    // Get the number of words
+    int maxWords;
+    cout << "Enter the number of words (1-9): ";
+    cin >> maxWords;
+    maxWords = max(1, min(9, maxWords));
     cin.clear();
     cin.ignore(100,'\n');
 
@@ -166,8 +173,11 @@ int main(){
 
     // Solve the puzzle and see how long it took
     auto start = chrono::high_resolution_clock::now();
-    if(!getSolution(words, puzzle, h, w))
+
+    groups colorPositions;
+    if(!getSolution(words, puzzle, h, w, colorPositions, maxWords))
         cout << "No solution found." << endl;
+    
     auto end = chrono::high_resolution_clock::now();
     chrono::duration<double> duration = end - start;
     cout << "Execution time: " << duration.count() << " s" << endl;
